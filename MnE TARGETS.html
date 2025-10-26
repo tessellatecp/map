@@ -66,36 +66,52 @@
   }
   .dark-toggle input { margin:0; }
 
-  /* Mobile: collapsed panel with floating toggle */
-  #panelToggle {
+  /* Mobile toggle button (hidden on desktop) */
+    #panelToggle {
     position: absolute; left: 10px; top: 10px; z-index: 1001;
-    width: 40px; height: 40px; border-radius: 9999px; border: none;
+    border: none; border-radius: 9999px;
     background: rgba(255,255,255,0.95);
     box-shadow: 0 6px 18px rgba(0,0,0,0.18);
-    display: grid; place-items: center; cursor: pointer;
-  }
-  #panelToggle:hover { background: rgba(255,255,255,1); }
-  #panelToggle .chev {
-    width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 9px solid #374151;
-    transform: rotate(0deg); transition: transform .2s ease;
-  }
-  #panel.open + #panelToggle .chev { transform: rotate(180deg); }
+    cursor: pointer;
 
-  @media (max-width: 768px) {
+    /* let text show next to the arrow */
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 12px;  /* no fixed width/height */
+    font-size: 13px; color: #374151;
+    }
+    #panelToggle:hover { background: rgba(255,255,255,1); }
+
+    #panelToggle .chev {
+    width: 0; height: 0;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 9px solid #374151;
+    transform: rotate(0deg);
+    transition: transform .2s ease;
+    }
+    /* Rotate arrow when the BUTTON is open */
+    #panelToggle.open .chev { transform: rotate(180deg); }
+
+    @media (max-width: 768px) {
+    /* panel is hidden by default on mobile; slides in when .open */
     #panel { transform: translateX(-110%); opacity: 0; }
     #panel.open { transform: translateX(0); opacity: 1; }
-  }
-  @media (min-width: 769px) {
+    }
+    @media (min-width: 769px) {
+    /* desktop: panel always visible; hide the mobile toggle */
     #panel { transform: none !important; opacity: 1 !important; }
     #panelToggle { display: none; }
-  }
+    }
 </style>
 </head>
 <body>
 <div id="map"></div>
 
 <!-- Mobile toggle button (hidden on desktop) -->
-<button id="panelToggle" aria-label="Toggle filters"><span class="chev"></span></button>
+<button id="panelToggle" type="button" aria-label="Filters" aria-expanded="false">
+  <span class="chev"></span>
+  <span class="label">Filters</span>
+</button>
 
 <div id="panel">
   <h2>Filters</h2>
@@ -179,7 +195,8 @@ function safe(s) {
 const clusterGroup = L.markerClusterGroup({
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
-  disableClusteringAtZoom: 13
+  disableClusteringAtZoom: 10,
+  maxClusterRadius: 40 // smaller = fewer clusters; 20 = very little
 }).addTo(map);
 
 const allMarkers = [];
@@ -313,7 +330,9 @@ syncPanelToViewport();
 window.addEventListener('resize', syncPanelToViewport);
 
 panelToggle.addEventListener('click', () => {
-  panel.classList.toggle('open');
+  const isOpen = panel.classList.toggle('open');
+  panelToggle.classList.toggle('open', isOpen);
+  panelToggle.setAttribute('aria-expanded', String(isOpen));
 });
 
 // initial run
