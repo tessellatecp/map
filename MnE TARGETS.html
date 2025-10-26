@@ -12,10 +12,13 @@
 
 <style>
   html, body, #map { height: 100%; margin: 0; }
+
+  /* Panel base */
   #panel {
     position: absolute; top: 10px; left: 10px; z-index: 1000;
     background: rgba(255,255,255,0.95); border-radius: 8px; padding: 12px 12px 10px;
     box-shadow: 0 6px 18px rgba(0,0,0,0.18); width: 320px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    transition: transform .25s ease, opacity .25s ease;
   }
   #panel h2 { font-size: 16px; margin: 0 0 8px; }
   #panel label { font-size: 12px; color: #374151; display: block; margin: 10px 0 4px; }
@@ -56,16 +59,43 @@
   .popup a { color: #0366d6; text-decoration: none; }
   .popup a:hover { text-decoration: underline; }
 
-  /* Dark toggle pill */
+  /* Dark toggle pill (bottom of panel) */
   .dark-toggle {
     display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#374151; user-select:none;
     border:1px solid #d1d5db; border-radius:999px; padding:4px 8px; background:#fff; cursor:pointer;
   }
   .dark-toggle input { margin:0; }
+
+  /* Mobile: collapsed panel with floating toggle */
+  #panelToggle {
+    position: absolute; left: 10px; top: 10px; z-index: 1001;
+    width: 40px; height: 40px; border-radius: 9999px; border: none;
+    background: rgba(255,255,255,0.95);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    display: grid; place-items: center; cursor: pointer;
+  }
+  #panelToggle:hover { background: rgba(255,255,255,1); }
+  #panelToggle .chev {
+    width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 9px solid #374151;
+    transform: rotate(0deg); transition: transform .2s ease;
+  }
+  #panel.open + #panelToggle .chev { transform: rotate(180deg); }
+
+  @media (max-width: 768px) {
+    #panel { transform: translateX(-110%); opacity: 0; }
+    #panel.open { transform: translateX(0); opacity: 1; }
+  }
+  @media (min-width: 769px) {
+    #panel { transform: none !important; opacity: 1 !important; }
+    #panelToggle { display: none; }
+  }
 </style>
 </head>
 <body>
 <div id="map"></div>
+
+<!-- Mobile toggle button (hidden on desktop) -->
+<button id="panelToggle" aria-label="Toggle filters"><span class="chev"></span></button>
 
 <div id="panel">
   <h2>Filters</h2>
@@ -116,7 +146,7 @@ const REV_MAX = 48834000;
 const FTE_MIN = 22;
 const FTE_MAX = 678;
 
-// Base layers (correct single-brace tokens)
+// Base layers
 const light = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; OpenStreetMap contributors'
@@ -133,12 +163,12 @@ const map = L.map('map', {
   zoom: 6
 });
 
-// Color scale by revenue bands
+// Revenue color bands aligned to legend
 function colorForRevenue(n) {
   if (n == null || isNaN(n)) return "#9CA3AF";
   if (n >= 40_000_000) return "#1E40AF";
   if (n >= 30_000_000) return "#0284C7";
-  if (n >= 20_000_000)  return "#F59E0B";
+  if (n >= 20_000_000) return "#F59E0B";
   return "#EA580C";
 }
 
@@ -254,10 +284,9 @@ function applyFilters() {
 let t = null;
 searchInput.addEventListener('input', () => { clearTimeout(t); t = setTimeout(applyFilters, 60); });
 
-// Re-filter on slider **update** for immediate response
+// Re-filter on slider update for immediate response
 revSlider.noUiSlider.on('update', applyFilters);
 fteSlider.noUiSlider.on('update', applyFilters);
-
 chkRevUnknown.addEventListener('change', applyFilters);
 chkFteUnknown.addEventListener('change', applyFilters);
 
@@ -266,6 +295,25 @@ const darkToggle = document.getElementById('darkToggle');
 darkToggle.addEventListener('change', () => {
   if (darkToggle.checked) { map.removeLayer(light); map.addLayer(dark); }
   else { map.removeLayer(dark); map.addLayer(light); }
+});
+
+// --- Mobile panel toggle ---
+const panel = document.getElementById('panel');
+const panelToggle = document.getElementById('panelToggle');
+
+function syncPanelToViewport() {
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  if (isMobile) {
+    panel.classList.remove('open'); // collapsed by default on mobile
+  } else {
+    panel.classList.add('open');    // always open on desktop
+  }
+}
+syncPanelToViewport();
+window.addEventListener('resize', syncPanelToViewport);
+
+panelToggle.addEventListener('click', () => {
+  panel.classList.toggle('open');
 });
 
 // initial run
